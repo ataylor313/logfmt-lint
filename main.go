@@ -13,13 +13,24 @@ import (
 
 func main() {
 	jsonOutput := flag.Bool("json", false, "emit a JSON array instead of the human-readable report")
+	schemaPath := flag.String("schema", "", "path to a JSON schema file overriding the default required fields, time format, and levels")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s [--json] [file ...]\n\nWith no files, reads from stdin.\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s [--json] [--schema file] [file ...]\n\nWith no files, reads from stdin.\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
-	results, err := run(flag.Args())
+	schema := defaultSchema()
+	if *schemaPath != "" {
+		s, err := loadSchema(*schemaPath)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		schema = s
+	}
+
+	results, err := run(flag.Args(), schema)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -43,7 +54,7 @@ func main() {
 
 // run reads each named file (or stdin, if paths is empty) and returns a
 // Result per non-blank line, in order.
-func run(paths []string) ([]Result, error) {
+func run(paths []string, schema Schema) ([]Result, error) {
 	type source struct {
 		name string
 		file *os.File
@@ -88,7 +99,7 @@ func run(paths []string) ([]Result, error) {
 				continue
 			}
 
-			errs := validate(entry)
+			errs := validate(entry, schema)
 			results = append(results, Result{
 				File:   src.name,
 				Line:   lineNo,

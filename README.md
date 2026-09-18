@@ -67,6 +67,32 @@ go run . --json access.log
 With no file arguments it reads from stdin, so it composes with `tail -f`,
 `grep`, or a CI job that pipes in a captured log sample.
 
+## Schema
+
+By default a line must carry `time` (RFC3339), `level` (one of
+`debug|info|warn|error|fatal`), and `msg`. To check different fields,
+pass `--schema` with a JSON file. Any key left out keeps its default
+value, so a config only needs to mention what it's changing:
+
+```json
+{
+  "required": ["ts", "severity", "msg"],
+  "time_field": "ts",
+  "time_format": "2006-01-02T15:04:05Z07:00",
+  "level_field": "severity",
+  "levels": ["low", "medium", "high"]
+}
+```
+
+```
+go run . --schema schema.json access.log
+```
+
+`time_format` is a Go reference-time layout (see the `time` package docs).
+`required` can list any field name, not just `time_field`/`level_field` -
+those two just get the extra format/value checks; everything else in
+`required` only needs to be present.
+
 ## Building
 
 Standard library only, no dependencies to fetch:
@@ -77,10 +103,8 @@ go build .
 
 ## Current limitations
 
-The validation schema is hardcoded (see `validate.go`). Quoted values
-follow Go string escaping via `strconv.Unquote`, which covers the common
-case but isn't a full logfmt implementation. See the roadmap in the repo
-description for what's planned next.
+Quoted values follow Go string escaping via `strconv.Unquote`, which
+covers the common case but isn't a full logfmt implementation.
 
 ## License
 
